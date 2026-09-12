@@ -148,3 +148,19 @@ export async function createFollowupDraft(leadId: string) {
     throw error;
   }
 }
+
+export async function updateLeadStatus(id: string, status: string) {
+  try {
+    const res = await fetch(`/api/leads/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  } catch (error) {
+    console.error(`updateLeadStatus - Error updating status for ${id}:`, error);
+    throw error;
+  }
+}

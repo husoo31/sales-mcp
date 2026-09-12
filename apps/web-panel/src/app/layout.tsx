@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Spark Command Center | HuseyinPanel",
+  title: "Sales-MCP Kontrol Merkezi",
   description: "Modern SaaS management panel for Spark Platform",
 };
 

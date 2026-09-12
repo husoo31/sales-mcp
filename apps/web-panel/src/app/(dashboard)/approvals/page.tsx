@@ -3,15 +3,14 @@
 import { useState, useEffect } from "react";
 import { 
   CheckCircle, XCircle, Edit3, MessageSquare, 
-  Users, Calendar, Search, MapPin, Phone, Check, RefreshCw, LogOut
+  Users, Calendar, Search, MapPin, Phone, Check, RefreshCw, LogOut, Settings
 } from "lucide-react";
+import SettingsModal from "@/components/SettingsModal";
 import {
   Lead, MessageDraft, FollowUp,
-  getLeads, getApprovals, approveMessage, rejectMessage, updateDraft, getFollowups
+  getLeads, getApprovals, approveMessage, rejectMessage, updateDraft, getFollowups, updateLeadStatus
 } from "@/lib/api";
-
-export default function CommandCenter() {
-  const [activeTab, setActiveTab] = useState<"approvals" | "leads" | "followups">("approvals");
+export default function ApprovalsPage() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
@@ -19,64 +18,11 @@ export default function CommandCenter() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/login";
-  };
-
   return (
-    <div className="min-h-screen bg-dark-bg text-dark-text flex flex-col font-sans">
-      {/* HEADER */}
-      <header className="border-b border-dark-border bg-dark-panel p-4 flex items-center justify-between sticky top-0 z-20 shadow-md">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold">
-            S
-          </div>
-          <h1 className="text-xl font-semibold tracking-tight text-white">HuseyinPanel <span className="text-dark-text-muted font-normal text-sm ml-2">| Spark Sales Command Center</span></h1>
-        </div>
-        
-        {/* Navigation Tabs */}
-        <nav className="flex space-x-1 bg-dark-bg p-1 rounded-lg border border-dark-border">
-          <button
-            onClick={() => setActiveTab("approvals")}
-            className={`px-4 py-2 text-sm font-medium rounded-md flex items-center gap-2 transition-colors ${
-              activeTab === "approvals" ? "bg-dark-border text-white" : "text-dark-text-muted hover:text-white hover:bg-white/5"
-            }`}
-          >
-            <MessageSquare size={16} />
-            Onay Bekleyenler
-          </button>
-          <button
-            onClick={() => setActiveTab("leads")}
-            className={`px-4 py-2 text-sm font-medium rounded-md flex items-center gap-2 transition-colors ${
-              activeTab === "leads" ? "bg-dark-border text-white" : "text-dark-text-muted hover:text-white hover:bg-white/5"
-            }`}
-          >
-            <Users size={16} />
-            Leads
-          </button>
-          <button
-            onClick={() => setActiveTab("followups")}
-            className={`px-4 py-2 text-sm font-medium rounded-md flex items-center gap-2 transition-colors ${
-              activeTab === "followups" ? "bg-dark-border text-white" : "text-dark-text-muted hover:text-white hover:bg-white/5"
-            }`}
-          >
-            <Calendar size={16} />
-            Takipler
-          </button>
-        </nav>
-        
-        <button onClick={handleLogout} className="px-4 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-danger hover:bg-danger-bg transition-colors">
-          <LogOut size={16} />
-          Çıkış Yap
-        </button>
-      </header>
-
+    <div className="w-full font-sans">
       {/* MAIN CONTENT */}
-      <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
-        {activeTab === "approvals" && <ApprovalsTab showToast={showToast} />}
-        {activeTab === "leads" && <LeadsTab />}
-        {activeTab === "followups" && <FollowupsTab />}
+      <main className="max-w-7xl w-full mx-auto">
+        <ApprovalsTab showToast={showToast} />
       </main>
 
       {/* TOAST NOTIFICATION */}
@@ -216,7 +162,7 @@ function ApprovalsTab({ showToast }: { showToast: (msg: string, type?: "success"
       </div>
       <div className="grid gap-6">
         {drafts.map((draft) => {
-          console.log("Draft Data:", draft);
+          console.log("DRAFT GELEN VERİ:", draft);
           const isApproving = animatingIds[draft.id] === 'approving';
           const isRejecting = animatingIds[draft.id] === 'rejecting';
           return (
@@ -263,19 +209,27 @@ function ApprovalsTab({ showToast }: { showToast: (msg: string, type?: "success"
                   onClick={() => setLightboxImage(draft.screenshotUrl || null)}
                   className="relative w-36 h-24 rounded-lg overflow-hidden border border-slate-700 hover:border-emerald-500 cursor-pointer group bg-slate-800 flex-shrink-0"
                 >
-                  <img 
-                    src={draft.screenshotUrl || ''} 
-                    alt={draft.lead?.clinicName || "Denetim Kanıtı"} 
-                    className="w-full h-full object-cover object-top"
-                    onError={(e) => {
-                      console.error("Görsel yüklenemedi:", draft.screenshotUrl);
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <span className="text-[11px] font-semibold text-white bg-emerald-600 px-2 py-0.5 rounded shadow">
-                      Büyüt
-                    </span>
-                  </div>
+                  {draft.screenshotUrl ? (
+                    <>
+                      <img 
+                        src={draft.screenshotUrl} 
+                        alt={draft.lead?.clinicName || "Denetim Kanıtı"} 
+                        className="w-full h-full object-cover object-top"
+                        onError={(e) => {
+                          console.error("Görsel yüklenemedi:", draft.screenshotUrl);
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-[11px] font-semibold text-white bg-emerald-600 px-2 py-0.5 rounded shadow">
+                          Büyüt
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-red-950 text-red-300 text-[10px] p-2 text-center">
+                      Görsel URL Veritabanında Boş!
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -357,7 +311,7 @@ function ApprovalsTab({ showToast }: { showToast: (msg: string, type?: "success"
 // -----------------------------------------------------
 // LEADS TAB
 // -----------------------------------------------------
-function LeadsTab() {
+export function LeadsTab() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -376,15 +330,46 @@ function LeadsTab() {
 
   const filtered = leads.filter(l => l.clinicName.toLowerCase().includes(search.toLowerCase()) || (l.district && l.district.toLowerCase().includes(search.toLowerCase())));
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "WAITING_APPROVAL":
+        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full border bg-amber-500/10 text-amber-400 border-amber-500/20">Onay Bekliyor</span>;
+      case "APPROVED_MANUAL_SEND_PENDING":
+        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full border bg-blue-500/10 text-blue-400 border-blue-500/20">Gönderim Kuyruğunda</span>;
+      case "APPROVED":
+      case "SENT":
+      case "WON":
+        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Anlaşıldı / Onaylandı</span>;
+      case "REJECTED":
+      case "CANCELLED":
+      case "LOST":
+        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full border bg-danger-bg/10 text-danger border-danger/20">İptal Edildi</span>;
+      case "FOLLOW_UP":
+      case "WAITING_FOLLOWUP":
+        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full border bg-purple-500/10 text-purple-400 border-purple-500/20">Takipte</span>;
+      default:
+        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full border bg-dark-border text-dark-text border-dark-border">{status}</span>;
+    }
+  };
+
+  const handleStatusChange = async (leadId: string, newStatus: string) => {
+    try {
+      await updateLeadStatus(leadId, newStatus);
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
+    } catch (err) {
+      console.error('Statü güncelleme hatası:', err);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full overflow-x-hidden">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-white">Müşteri Havuzu</h2>
       </div>
 
       {/* Filters */}
-      <div className="bg-dark-panel p-4 rounded-xl border border-dark-border flex gap-4">
-        <div className="relative flex-1 max-w-md">
+      <div className="bg-dark-panel p-4 rounded-xl border border-dark-border flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-text-muted" size={18} />
           <input 
             type="text" 
@@ -421,12 +406,16 @@ function LeadsTab() {
                     <td className="px-6 py-4 text-dark-text-muted">{lead.district || '-'}</td>
                     <td className="px-6 py-4 text-dark-text-muted">{lead.phone}</td>
                     <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 bg-white/5 text-xs rounded-full font-medium border border-white/10 text-brand-400">
-                        {lead.status.replace(/_/g, ' ')}
-                      </span>
+                      {getStatusBadge(lead.status)}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => setSelectedLead(lead)} className="text-brand-500 hover:text-brand-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">Detay</button>
+                    <td className="px-6 py-4 text-right flex justify-end items-center gap-2">
+                      <button onClick={() => setSelectedLead(lead)} className="text-brand-500 hover:text-brand-400 font-medium bg-dark-bg px-3 py-1.5 rounded border border-brand-500/30 transition-colors">Detay</button>
+                      <button onClick={() => handleStatusChange(lead.id, 'WON')} className="text-emerald-500 hover:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded border border-emerald-500/30 transition-colors flex items-center gap-1">
+                        <CheckCircle size={14} /> Onayla
+                      </button>
+                      <button onClick={() => handleStatusChange(lead.id, 'LOST')} className="text-danger hover:text-red-400 bg-danger-bg/20 hover:bg-danger-bg/40 px-3 py-1.5 rounded border border-danger/30 transition-colors flex items-center gap-1">
+                        <XCircle size={14} /> İptal
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -449,13 +438,13 @@ function LeadsTab() {
             </div>
             
             <div className="space-y-4">
-              <div className="flex items-center gap-3 bg-dark-bg p-3 rounded-lg border border-dark-border">
+              <div className="flex items-center gap-3 bg-dark-bg p-3 rounded-lg border border-dark-border hover:border-brand-500/50 transition-colors">
                 <Phone className="text-brand-500" size={20} />
-                <span className="text-white">{selectedLead.phone}</span>
+                <a href={`tel:${selectedLead.phone}`} className="text-white hover:text-brand-400">{selectedLead.phone}</a>
               </div>
-              <div className="flex items-center gap-3 bg-dark-bg p-3 rounded-lg border border-dark-border">
+              <div className="flex items-center gap-3 bg-dark-bg p-3 rounded-lg border border-dark-border hover:border-brand-500/50 transition-colors">
                 <Search className="text-brand-500" size={20} />
-                <a href={selectedLead.website || "#"} target="_blank" rel="noreferrer" className="text-brand-400 hover:underline">{selectedLead.website || "Web sitesi yok"}</a>
+                <a href={selectedLead.website || "#"} target="_blank" rel="noreferrer" className="text-brand-400 hover:underline break-all">{selectedLead.website || "Web sitesi yok"}</a>
               </div>
               <div className="flex items-center gap-3 bg-dark-bg p-3 rounded-lg border border-dark-border">
                 <Users className="text-brand-500" size={20} />
@@ -501,7 +490,7 @@ function LeadsTab() {
 // -----------------------------------------------------
 // FOLLOWUPS TAB
 // -----------------------------------------------------
-function FollowupsTab() {
+export function FollowupsTab() {
   const [tasks, setTasks] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingId, setCreatingId] = useState<string | null>(null);

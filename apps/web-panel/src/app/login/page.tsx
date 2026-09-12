@@ -1,36 +1,62 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Lock, LogIn } from "lucide-react";
+import { Lock, LogIn, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
+  const [twoFaCode, setTwoFaCode] = useState("");
+  const [step, setStep] = useState<"password" | "2fa">("password");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password })
-      });
-
-      if (res.ok) {
-        window.location.href = "/";
-      } else {
-        setError("Geçersiz şifre");
+    if (step === "password") {
+      try {
+        const res = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password })
+        });
+        
+        const data = await res.json();
+        if (res.ok && data.success) {
+          if (data.requires2FA) {
+            setStep("2fa");
+          } else {
+            window.location.href = "/";
+          }
+        } else {
+          setError(data.error || "Geçersiz şifre");
+        }
+      } catch (err) {
+        setError("Bir hata oluştu");
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError("Bir hata oluştu");
-    } finally {
-      setLoading(false);
+    } else {
+      try {
+        const res = await fetch("/api/auth/2fa/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: twoFaCode })
+        });
+        
+        const data = await res.json();
+        if (res.ok && data.success) {
+          window.location.href = "/";
+        } else {
+          setError(data.error || "Geçersiz doğrulama kodu");
+        }
+      } catch (err) {
+        setError("Bir hata oluştu");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -42,32 +68,47 @@ export default function LoginPage() {
         
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-brand-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-brand-500/20">
-            <Lock className="text-brand-500" size={32} />
+            {step === "password" ? <Lock className="text-brand-500" size={32} /> : <ShieldCheck className="text-brand-500" size={32} />}
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">Spark Command Center</h1>
-          <p className="text-dark-text-muted text-sm">Lütfen yönetici şifrenizle giriş yapın.</p>
+          <p className="text-dark-text-muted text-sm">
+            {step === "password" ? "Lütfen yönetici şifrenizle giriş yapın." : "Lütfen Authenticator uygulamasındaki 6 haneli kodu girin."}
+          </p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <input
-              type="password"
-              placeholder="Şifre"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-dark-bg border border-dark-border text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder:text-dark-text-muted"
-            />
-            {error && <p className="text-danger text-sm mt-2">{error}</p>}
+            {step === "password" ? (
+              <input
+                type="password"
+                placeholder="Şifre"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-dark-bg border border-dark-border text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder:text-dark-text-muted"
+                autoFocus
+              />
+            ) : (
+              <input
+                type="text"
+                placeholder="000000"
+                maxLength={6}
+                value={twoFaCode}
+                onChange={(e) => setTwoFaCode(e.target.value.replace(/[^0-9]/g, ''))}
+                className="w-full bg-dark-bg border border-dark-border text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder:text-dark-text-muted text-center tracking-widest text-2xl"
+                autoFocus
+              />
+            )}
+            {error && <p className="text-danger text-sm mt-2 text-center">{error}</p>}
           </div>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (step === "password" ? !password : twoFaCode.length < 6)}
             className="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-500/20"
           >
-            {loading ? "Giriş Yapılıyor..." : (
+            {loading ? "Doğrulanıyor..." : (
               <>
                 <LogIn size={20} />
-                Giriş Yap
+                {step === "password" ? "Giriş Yap" : "Doğrula"}
               </>
             )}
           </button>
