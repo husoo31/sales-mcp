@@ -27,7 +27,7 @@ export interface Lead {
   followUpStatus?: string;
   scheduledFollowUpAt?: string;
   followUpCount?: number;
-  drafts?: { screenshotUrl?: string }[];
+  drafts?: { id?: string; content?: string; screenshotUrl?: string }[];
   createdAt: string;
   contacts?: LeadContact[];
 }

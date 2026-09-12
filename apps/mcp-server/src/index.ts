@@ -6,6 +6,7 @@ import { messageTools } from './tools/message.tools.js';
 import { activityTools } from './tools/activity.tools.js';
 import { followUpTools } from './tools/followup.tools.js';
 import { aiTools } from './tools/ai.tools.js';
+import { scanTools } from './tools/scan.tools.js';
 
 async function main() {
   const app = new SparkMcpServer();
@@ -16,7 +17,8 @@ async function main() {
     ...messageTools,
     ...activityTools,
     ...followUpTools,
-    ...aiTools
+    ...aiTools,
+    ...scanTools,
   ];
 
   for (const tool of allTools) {

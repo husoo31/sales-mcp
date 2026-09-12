@@ -1,0 +1,11 @@
+﻿{
+  "mcpServers": {
+    "spark-sales": {
+      "command": "node",
+      "args": ["apps/mcp-server/dist/index.js"],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  }
+}

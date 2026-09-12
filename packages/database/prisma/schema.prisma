@@ -65,12 +65,15 @@ enum AuditLogLevel {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  role      String   @default("ADMIN")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  email              String   @unique
+  name               String?
+  role               String   @default("ADMIN")
+  passwordHash       String?
+  twoFactorSecret    String?
+  isTwoFactorEnabled Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   approvals Approval[]
   auditLogs AuditLog[]

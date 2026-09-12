@@ -63,4 +63,44 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// PATCH /api/leads/:id/status
+router.patch('/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({ error: 'Status is required' });
+    }
+
+    const validStatus = status as LeadStatus;
+
+    // Update the lead status
+    const lead = await prisma.lead.update({
+      where: { id },
+      data: { status: validStatus }
+    });
+
+    // Update associated MessageDrafts if any
+    let draftStatus = null;
+    if (validStatus === 'WON' || validStatus === 'PREPARED_FOR_SEND') {
+      draftStatus = 'APPROVED_MANUAL_SEND_PENDING';
+    } else if (validStatus === 'LOST') {
+      draftStatus = 'REJECTED';
+    }
+
+    if (draftStatus) {
+      await prisma.messageDraft.updateMany({
+        where: { leadId: id },
+        data: { status: draftStatus as any }
+      });
+    }
+
+    res.json({ success: true, lead });
+  } catch (error) {
+    console.error('[STATUS_UPDATE_ERROR]:', error);
+    res.status(500).json({ error: 'Failed to update lead status', details: String(error) });
+  }
+});
+
 export default router;

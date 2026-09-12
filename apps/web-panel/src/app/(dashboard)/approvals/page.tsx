@@ -309,6 +309,29 @@ function ApprovalsTab({ showToast }: { showToast: (msg: string, type?: "success"
 }
 
 // -----------------------------------------------------
+// WHATSAPP UTILITIES
+// -----------------------------------------------------
+const isFixedLine = (phone: string) => {
+  if (!phone) return false;
+  const clean = phone.replace(/[\s\-().+ ]/g, '');
+  return (
+    /^0?(212|216|312|232|224|342|262|264|268|272|274|282|288|258|252|242|236|226|222|284|286|228|248|246|244|234|266|276)/.test(clean) ||
+    /^0?444/.test(clean) ||
+    /^0?850/.test(clean)
+  );
+};
+
+const getWhatsAppUrl = (phone: string, text: string) => {
+  let clean = phone.replace(/[\s\-().+]/g, '');
+  if (clean.startsWith('0')) {
+    clean = '90' + clean.slice(1);
+  } else if (!clean.startsWith('90')) {
+    clean = '90' + clean;
+  }
+  return `https://web.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(text)}`;
+};
+
+// -----------------------------------------------------
 // LEADS TAB
 // -----------------------------------------------------
 export function LeadsTab() {
@@ -400,7 +423,9 @@ export function LeadsTab() {
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-dark-text-muted">Sonuç bulunamadı</td></tr>
               ) : (
-                filtered.map(lead => (
+                filtered.map(lead => {
+                  const isFixed = isFixedLine(lead.phone);
+                  return (
                   <tr key={lead.id} className="hover:bg-dark-bg/50 transition-colors group">
                     <td className="px-6 py-4 font-medium text-white">{lead.clinicName}</td>
                     <td className="px-6 py-4 text-dark-text-muted">{lead.district || '-'}</td>
@@ -410,6 +435,18 @@ export function LeadsTab() {
                     </td>
                     <td className="px-6 py-4 text-right flex justify-end items-center gap-2">
                       <button onClick={() => setSelectedLead(lead)} className="text-brand-500 hover:text-brand-400 font-medium bg-dark-bg px-3 py-1.5 rounded border border-brand-500/30 transition-colors">Detay</button>
+                      <button 
+                        onClick={() => {
+                          if (isFixed) return;
+                          const text = lead.drafts?.[0]?.content || "";
+                          window.open(getWhatsAppUrl(lead.phone, text), '_blank');
+                        }}
+                        disabled={isFixed}
+                        title={isFixed ? "Yalnızca mobil hatlara mesaj gönderilebilir" : "WhatsApp'ta Aç"}
+                        className={`px-3 py-1.5 rounded border transition-colors flex items-center gap-1 font-medium ${isFixed ? "opacity-50 cursor-not-allowed bg-dark-bg text-dark-text-muted border-dark-border" : "text-emerald-500 hover:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"}`}
+                      >
+                        <MessageSquare size={14} /> WP
+                      </button>
                       <button onClick={() => handleStatusChange(lead.id, 'WON')} className="text-emerald-500 hover:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded border border-emerald-500/30 transition-colors flex items-center gap-1">
                         <CheckCircle size={14} /> Onayla
                       </button>
@@ -418,7 +455,7 @@ export function LeadsTab() {
                       </button>
                     </td>
                   </tr>
-                ))
+                )})
               )}
             </tbody>
           </table>
@@ -467,6 +504,22 @@ export function LeadsTab() {
                   </div>
                 </div>
               )}
+
+              <div className="mt-6">
+                <button
+                  onClick={() => {
+                    const isFixed = isFixedLine(selectedLead.phone);
+                    if (isFixed) return;
+                    const text = selectedLead.drafts?.[0]?.content || "";
+                    window.open(getWhatsAppUrl(selectedLead.phone, text), '_blank');
+                  }}
+                  disabled={isFixedLine(selectedLead.phone)}
+                  title={isFixedLine(selectedLead.phone) ? "Yalnızca mobil hatlara mesaj gönderilebilir" : "WhatsApp'ta Aç"}
+                  className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors ${isFixedLine(selectedLead.phone) ? "bg-dark-border text-dark-text-muted cursor-not-allowed" : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20"}`}
+                >
+                  <MessageSquare size={20} /> WhatsApp Mesajını Aç
+                </button>
+              </div>
             </div>
           </div>
         </div>

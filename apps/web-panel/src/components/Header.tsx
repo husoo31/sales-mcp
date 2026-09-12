@@ -25,10 +25,16 @@ export default function Header() {
   const drawerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch(`${BASE_URL}/mcp/status`)
-      .then(res => res.json())
-      .then(data => setMcpStatus(data.status === "connected" ? "connected" : "disconnected"))
-      .catch(() => setMcpStatus("disconnected"));
+    const checkStatus = () => {
+      fetch(`${BASE_URL}/mcp/status`)
+        .then(res => res.ok ? res.json() : { status: "disconnected" })
+        .then(data => setMcpStatus(data.status === "connected" ? "connected" : "disconnected"))
+        .catch(() => setMcpStatus("disconnected"));
+    };
+    
+    checkStatus();
+    const interval = setInterval(checkStatus, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   // Close on outside click
@@ -92,9 +98,9 @@ export default function Header() {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               Sistemler aktif
             </div>
-            <div className={`flex items-center gap-1.5 ${mcpStatus === "connected" ? "text-emerald-400" : "text-danger"}`}>
-              <span className={`w-2 h-2 rounded-full ${mcpStatus === "connected" ? "bg-emerald-500 animate-pulse" : "bg-danger animate-pulse"}`} />
-              {mcpStatus === "connected" ? "MCP Bağlı" : "MCP Koptu"}
+            <div className={`flex items-center gap-1.5 ${mcpStatus === "connected" ? "text-emerald-400" : "text-warning"}`}>
+              <span className={`w-2 h-2 rounded-full ${mcpStatus === "connected" ? "bg-emerald-500 animate-pulse" : "bg-warning animate-pulse"}`} />
+              {mcpStatus === "connected" ? "MCP Bağlı" : "MCP Beklemede"}
               {mcpStatus === "connected" ? <Check size={12} /> : <X size={12} />}
             </div>
           </div>
@@ -176,9 +182,9 @@ export default function Header() {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
             Sistemler aktif
           </div>
-          <div className={`flex items-center gap-2 text-xs ${mcpStatus === "connected" ? "text-emerald-400" : "text-danger"}`}>
-            <span className={`w-2 h-2 rounded-full shrink-0 ${mcpStatus === "connected" ? "bg-emerald-500 animate-pulse" : "bg-danger animate-pulse"}`} />
-            {mcpStatus === "connected" ? "MCP Bağlı" : "MCP Bağlantısı Koptu"}
+          <div className={`flex items-center gap-2 text-xs ${mcpStatus === "connected" ? "text-emerald-400" : "text-warning"}`}>
+            <span className={`w-2 h-2 rounded-full shrink-0 ${mcpStatus === "connected" ? "bg-emerald-500 animate-pulse" : "bg-warning animate-pulse"}`} />
+            {mcpStatus === "connected" ? "MCP Bağlı" : "MCP Beklemede"}
           </div>
         </div>
 

@@ -4,6 +4,9 @@ import { prisma } from '@spark/database';
 import leadsRouter from './routes/leads.js';
 import approvalsRouter from './routes/approvals.js';
 import followUpsRouter from './routes/followups.js';
+import dashboardRouter from './routes/dashboard.js';
+import workerRouter from './routes/worker.js';
+import mcpRouter from './routes/mcp.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,6 +35,9 @@ app.get('/health', async (req, res) => {
 app.use('/api/leads', leadsRouter);
 app.use('/api/approvals', approvalsRouter);
 app.use('/api/followups', followUpsRouter);
+app.use('/api/dashboard', dashboardRouter);
+app.use('/api/worker', workerRouter);
+app.use('/api/mcp', mcpRouter);
 
 app.listen(PORT, () => {
   console.log(`API Server running on port ${PORT}`);
