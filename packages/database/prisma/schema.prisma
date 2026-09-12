@@ -1,0 +1,234 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum LeadStatus {
+  NEW
+  RESEARCHING
+  ANALYZED
+  MESSAGE_READY
+  WAITING_APPROVAL
+  PREPARED_FOR_SEND
+  CONTACTED
+  REPLIED
+  INTERESTED
+  MEETING
+  PROPOSAL
+  WON
+  LOST
+  WAITING_FOLLOWUP
+}
+
+enum MessageDraftStatus {
+  WAITING_APPROVAL
+  APPROVED_MANUAL_SEND_PENDING
+  PREPARED_FOR_SEND
+  SENT
+  REJECTED
+}
+
+enum ApprovalStatus {
+  WAITING_APPROVAL
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum FollowUpStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum AuditLogLevel {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("ADMIN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  approvals Approval[]
+  auditLogs AuditLog[]
+}
+
+model Lead {
+  id           String        @id @default(uuid())
+  clinicName   String
+  district     String?
+  city         String?
+  rating       Float?
+  reviews      Int?
+  website      String?
+  phone        String
+  phoneNumbers String[]
+  category     String?
+  leadScore    Int?
+  problem      String?   @db.Text
+  opportunity  String?   @db.Text
+  offer        String?   @db.Text
+  source       String?
+  notes        String?   @db.Text
+  status       LeadStatus    @default(NEW)
+
+  // Follow-up fields
+  followUpStatus       String?
+  scheduledFollowUpAt  DateTime?
+  followUpCount        Int       @default(0)
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  drafts        MessageDraft[]
+  logs          ActivityLog[]
+  contacts      LeadContact[]
+  conversations Conversation[]
+  followUps     FollowUp[]
+}
+
+model LeadContact {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  name      String?
+  title     String?
+  phone     String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+}
+
+model Conversation {
+  id            String             @id @default(uuid())
+  leadId        String
+  lead          Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  status        ConversationStatus @default(OPEN)
+  startedAt     DateTime           @default(now())
+  lastMessageAt DateTime           @default(now())
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  messages  Message[]
+  followUps FollowUp[]
+
+  @@index([leadId])
+}
+
+model Message {
+  id             String           @id @default(uuid())
+  conversationId String
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction      MessageDirection
+  content        String           // Only necessary CRM context / message text
+  sender         String?
+  timestamp      DateTime         @default(now())
+
+  @@index([conversationId])
+}
+
+model MessageDraft {
+  id           String             @id @default(uuid())
+  leadId       String
+  lead         Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  content      String
+  screenshotUrl String?
+  status       MessageDraftStatus @default(WAITING_APPROVAL)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  approval Approval?
+}
+
+model Approval {
+  id          String         @id @default(uuid())
+  draftId     String         @unique
+  draft       MessageDraft   @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  status      ApprovalStatus @default(WAITING_APPROVAL)
+  approvedBy  String?
+  user        User?          @relation(fields: [approvedBy], references: [id], onDelete: SetNull)
+  approvedAt  DateTime?
+  reason      String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([approvedBy])
+}
+
+model FollowUp {
+  id             String         @id @default(uuid())
+  leadId         String
+  lead           Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  conversationId String?
+  conversation   Conversation?  @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  scheduledFor   DateTime
+  status         FollowUpStatus @default(PENDING)
+  reason         String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([leadId])
+  @@index([conversationId])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  action    String
+  details   String?
+  status    String   @default("INFO")
+  timestamp DateTime @default(now())
+
+  @@index([leadId])
+}
+
+model AuditLog {
+  id         String        @id @default(uuid())
+  userId     String?
+  user       User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  resource   String?
+  resourceId String?
+  details    String?
+  level      AuditLogLevel @default(INFO)
+  ipAddress  String?
+  createdAt  DateTime      @default(now())
+
+  @@index([userId])
+}
+
+model CommercialGuideline {
+  id                        String   @id @default(uuid())
+  serviceName               String
+  minPrice                  Float
+  maxPrice                  Float
+  currency                  String   @default("TRY")
+  allowedDiscountPercentage Float    @default(0)
+  notes                     String?
+}

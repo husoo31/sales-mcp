@@ -1,0 +1,23 @@
+{
+  "name": "@spark/api-server",
+  "version": "1.0.0",
+  "description": "REST API Server",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "node --loader ts-node/esm src/index.ts",
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@spark/database": "*",
+    "@spark/shared": "*",
+    "cors": "^2.8.6",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.3"
+  },
+  "type": "module"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@spark/shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module"
+}

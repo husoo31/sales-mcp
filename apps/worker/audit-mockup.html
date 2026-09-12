@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=375, initial-scale=1.0">
+    <title>Klinik Mobil</title>
+    <style>
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f8f9fa; color: #333; }
+        .browser-bar { background: #f0f0f0; padding: 12px; display: flex; align-items: center; border-bottom: 1px solid #ddd; font-size: 14px; }
+        .url-bar { background: #fff; padding: 8px 12px; border-radius: 12px; flex: 1; text-align: center; color: #666; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .url-bar .icon { color: #dc3545; font-weight: bold; }
+        .header { padding: 20px; background: white; text-align: center; border-bottom: 1px solid #eee; }
+        .logo { font-size: 24px; font-weight: 800; color: #2c3e50; }
+        .hero { padding: 40px 20px; text-align: center; background: #eef2f5; }
+        .hero h1 { font-size: 22px; margin-bottom: 10px; color: #2c3e50; }
+        .hero p { font-size: 14px; color: #555; line-height: 1.5; }
+        
+        .content { padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        
+        /* THE ERROR AREA */
+        .error-highlight {
+            position: relative;
+            border: 3px dashed #ef4444;
+            background-color: rgba(239, 68, 68, 0.05);
+            padding: 40px 20px;
+            margin: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .error-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ef4444;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.4);
+        }
+        
+        .empty-action {
+            color: #999;
+            font-size: 14px;
+            font-style: italic;
+        }
+
+        .footer { padding: 30px 20px; background: #2c3e50; color: white; text-align: center; font-size: 12px; margin-top: 40px; }
+    </style>
+</head>
+<body>
+    <div class="browser-bar">
+        <div class="url-bar">
+            <span class="icon">⚠️</span> klinik-ornek.com (Güvenli Değil)
+        </div>
+    </div>
+    
+    <div class="header">
+        <div class="logo">DENTAKLİNİK</div>
+    </div>
+    
+    <div class="hero">
+        <h1>Gülüşünüzü Yeniden Tasarlıyoruz</h1>
+        <p>Uzman hekim kadromuz ile modern ve ağrısız diş tedavileri.</p>
+    </div>
+    
+    <div class="content">
+        <div class="card">
+            <h3>Hizmetlerimiz</h3>
+            <p style="font-size: 14px; color: #666;">İmplant, Zirkonyum, Ortodonti ve daha fazlası için kliniğimize bekleriz.</p>
+        </div>
+    </div>
+    
+    <!-- MISSING ACTION AUDIT HIGHLIGHT -->
+    <div class="error-highlight">
+        <div class="error-badge">Hata: Mobilde Hızlı İletişim & Randevu Modülü Eksik</div>
+        <div class="empty-action">
+            (Bu alanda WhatsApp Randevu veya Fiyat Hesapla butonu bulunmuyor)
+        </div>
+    </div>
+
+    <div class="footer">
+        © 2026 Klinik Örnek. Tüm hakları saklıdır.
+    </div>
+</body>
+</html>
