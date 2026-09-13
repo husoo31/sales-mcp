@@ -34,12 +34,11 @@ async function main() {
 
   const sessions = new Map<string, { transport: SSEServerTransport; mcpApp: SparkMcpServer }>();
 
-  // Kapsamlı CORS başlıkları (Gemini proxy'lerinin takılmaması için)
+  // Global CORS
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
-    res.header('Access-Control-Expose-Headers', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
     if (req.method === 'OPTIONS') {
       res.sendStatus(200);
       return;
@@ -53,16 +52,13 @@ async function main() {
     res.json({ status: 'ok', server: 'spark-mcp' });
   });
 
-  // Ortak SSE dinleyici fonksiyonu
-  const handleSse = async (req: express.Request, res: express.Response) => {
-    res.setHeader('X-Accel-Buffering', 'no');
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
+  app.get('/', (_req, res) => {
+    res.json({ status: 'ok', message: 'Spark MCP SSE server is running' });
+  });
 
-    if (res.flushHeaders) {
-      res.flushHeaders();
-    }
+  // SSE Endpoint
+  app.get('/sse', async (req, res) => {
+    res.setHeader('X-Accel-Buffering', 'no');
 
     const transport = new SSEServerTransport('/messages', res);
     const mcpApp = createSparkMcpInstance();
@@ -75,18 +71,15 @@ async function main() {
       try {
         await mcpApp.server.close();
       } catch (err) {
-        console.error('Error closing server instance:', err);
+        // Oturum kapandı
       }
     });
 
     await mcpApp.server.connect(transport);
-  };
+  });
 
-  // Hem /sse hem / rotasını dinle
-  app.get('/sse', handleSse);
-
-  // Ortak Mesaj iletici fonksiyonu (hem /messages hem /message destekler)
-  const handleMessage = async (req: express.Request, res: express.Response) => {
+  // Messages Endpoint
+  app.post('/messages', async (req, res) => {
     const sessionId = req.query.sessionId as string;
     const session = sessions.get(sessionId);
 
@@ -96,13 +89,10 @@ async function main() {
     }
 
     await session.transport.handlePostMessage(req, res);
-  };
-
-  app.post('/messages', handleMessage);
-  app.post('/message', handleMessage);
+  });
 
   app.listen(port, '0.0.0.0', () => {
-    console.log(`Spark Sales MCP Server running on port ${port}`);
+    console.log(`Spark Sales MCP Server running on port ${port} (SSE mode)`);
   });
 }
 
@@ -110,4 +100,14 @@ main().catch(async (error) => {
   console.error('Server error:', error);
   await prisma.$disconnect();
   process.exit(1);
+});
+
+process.on('SIGINT', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
 });
