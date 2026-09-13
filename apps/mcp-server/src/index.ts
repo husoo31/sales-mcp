@@ -60,7 +60,7 @@ async function main() {
   app.get('/sse', async (req, res) => {
     res.setHeader('X-Accel-Buffering', 'no');
 
-    const transport = new SSEServerTransport('/messages', res);
+    const transport = new SSEServerTransport('https://mcp.swenzy.blog/messages', res);
     const mcpApp = createSparkMcpInstance();
 
     const sessionId = transport.sessionId;
