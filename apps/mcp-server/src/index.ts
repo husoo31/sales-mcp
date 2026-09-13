@@ -9,27 +9,10 @@ import { followUpTools } from './tools/followup.tools.js';
 import { aiTools } from './tools/ai.tools.js';
 import { scanTools } from './tools/scan.tools.js';
 
-async function main() {
-  const app = express();
-  const port = Number(process.env.PORT) || 3001;
-
-  // Global CORS & SSE Headers (Gemini entegrasyonu icin zorunlu)
-  app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
-    if (req.method === 'OPTIONS') {
-      res.sendStatus(200);
-      return;
-    }
-    next();
-  });
-
-  app.use(express.json());
-
+// Her yeni bağlantı için izole bir MCP sunucusu üreten fabrika fonksiyonu
+function createSparkMcpInstance(): SparkMcpServer {
   const mcpApp = new SparkMcpServer();
 
-  // Register tools
   const allTools = [
     ...leadTools,
     ...messageTools,
@@ -43,7 +26,29 @@ async function main() {
     mcpApp.registerTool(tool);
   }
 
-  let transport: SSEServerTransport | null = null;
+  return mcpApp;
+}
+
+async function main() {
+  const app = express();
+  const port = Number(process.env.PORT) || 3001;
+
+  // Çoklu istemci oturumlarını tutan Session Map
+  const sessions = new Map<string, { transport: SSEServerTransport; mcpApp: SparkMcpServer }>();
+
+  // Global CORS ayarları
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(200);
+      return;
+    }
+    next();
+  });
+
+  app.use(express.json());
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', server: 'spark-mcp' });
@@ -54,21 +59,48 @@ async function main() {
   });
 
   app.get('/sse', async (req, res) => {
-    console.log('SSE connection requested from:', req.headers['origin'] || req.ip);
-    transport = new SSEServerTransport('/messages', res);
-    await mcpApp.server.connect(transport);
+    // Traefik ve Nginx proxy buffering'ini kapat
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
 
-    req.on('close', () => {
-      console.log('SSE connection closed');
+    if (res.flushHeaders) {
+      res.flushHeaders();
+    }
+
+    console.log('SSE connection requested from:', req.headers['origin'] || req.ip);
+
+    // Her oturuma özel transport ve mcp sunucu örneği oluştur
+    const transport = new SSEServerTransport('/messages', res);
+    const mcpApp = createSparkMcpInstance();
+
+    const sessionId = transport.sessionId;
+    sessions.set(sessionId, { transport, mcpApp });
+
+    req.on('close', async () => {
+      console.log(`SSE connection closed for session: ${sessionId}`);
+      sessions.delete(sessionId);
+      try {
+        await mcpApp.server.close();
+      } catch (err) {
+        console.error('Error closing MCP server instance:', err);
+      }
     });
+
+    await mcpApp.server.connect(transport);
   });
 
   app.post('/messages', async (req, res) => {
-    if (!transport) {
-      res.status(400).send('No active SSE session');
+    const sessionId = req.query.sessionId as string;
+    const session = sessions.get(sessionId);
+
+    if (!session) {
+      res.status(404).json({ error: 'Session not found or expired' });
       return;
     }
-    await transport.handlePostMessage(req, res);
+
+    await session.transport.handlePostMessage(req, res);
   });
 
   app.listen(port, '0.0.0.0', () => {
