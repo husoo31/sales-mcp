@@ -13,6 +13,20 @@ async function main() {
   const app = express();
   const port = Number(process.env.PORT) || 3001;
 
+  // Global CORS & SSE Headers (Gemini entegrasyonu icin zorunlu)
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(200);
+      return;
+    }
+    next();
+  });
+
+  app.use(express.json());
+
   const mcpApp = new SparkMcpServer();
 
   // Register tools
@@ -35,11 +49,16 @@ async function main() {
     res.json({ status: 'ok', server: 'spark-mcp' });
   });
 
-  app.get('/sse', async (_req, res) => {
+  app.get('/', (_req, res) => {
+    res.json({ status: 'ok', message: 'Spark MCP SSE server is running' });
+  });
+
+  app.get('/sse', async (req, res) => {
+    console.log('SSE connection requested from:', req.headers['origin'] || req.ip);
     transport = new SSEServerTransport('/messages', res);
     await mcpApp.server.connect(transport);
 
-    _req.on('close', () => {
+    req.on('close', () => {
       console.log('SSE connection closed');
     });
   });
