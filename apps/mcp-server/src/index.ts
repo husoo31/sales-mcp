@@ -34,11 +34,12 @@ async function main() {
 
   const sessions = new Map<string, { transport: SSEServerTransport; mcpApp: SparkMcpServer }>();
 
-  // Global CORS
+  // Global CORS & JSON-RPC Preflight
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With, mcp-session-id');
+    res.header('Access-Control-Expose-Headers', '*');
     if (req.method === 'OPTIONS') {
       res.sendStatus(200);
       return;
@@ -46,18 +47,14 @@ async function main() {
     next();
   });
 
-  app.use(express.json());
+  app.use(express.json({ limit: '10mb' }));
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', server: 'spark-mcp' });
   });
 
-  app.get('/', (_req, res) => {
-    res.json({ status: 'ok', message: 'Spark MCP SSE server is running' });
-  });
-
-  // SSE Endpoint
-  app.get('/sse', async (req, res) => {
+  // SSE Handler
+  const handleSse = async (req: express.Request, res: express.Response) => {
     res.setHeader('X-Accel-Buffering', 'no');
 
     const transport = new SSEServerTransport('https://mcp.swenzy.blog/messages', res);
@@ -76,23 +73,63 @@ async function main() {
     });
 
     await mcpApp.server.connect(transport);
-  });
+  };
 
-  // Messages Endpoint
-  app.post('/messages', async (req, res) => {
-    const sessionId = req.query.sessionId as string;
+  app.get('/sse', handleSse);
+  app.get('/mcp', handleSse);
+
+  // Message Handler (Gemini'nin hem /messages hem / hem /mcp POST çağrılarını karşılar)
+  const handleMessages = async (req: express.Request, res: express.Response) => {
+    const sessionId = (req.query.sessionId as string) || (req.headers['mcp-session-id'] as string);
+
+    // Eğer doğrudan JSON-RPC initialize gelirse (SSE oturumsuz stateless HTTP)
+    if (!sessionId) {
+      const singleServer = createSparkMcpInstance();
+      try {
+        // Tek seferlik JSON-RPC mesajını sunucuya işlet
+        if (req.body && req.body.method === 'initialize') {
+          return res.json({
+            jsonrpc: '2.0',
+            id: req.body.id,
+            result: {
+              protocolVersion: '2024-11-05',
+              capabilities: { tools: {} },
+              serverInfo: { name: 'spark-sales-mcp', version: '1.0.0' }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Stateless MCP error:', err);
+      }
+      return res.status(400).json({ error: 'Session ID required' });
+    }
+
     const session = sessions.get(sessionId);
-
     if (!session) {
-      res.status(404).json({ error: 'Session not found or expired' });
-      return;
+      return res.status(404).json({ error: 'Session not found or expired' });
     }
 
     await session.transport.handlePostMessage(req, res);
+  };
+
+  app.post('/messages', handleMessages);
+  app.post('/mcp', handleMessages);
+  app.post('/', handleMessages);
+
+  // Kök endpoint kontrolü
+  app.get('/', (_req, res) => {
+    res.json({
+      status: 'ok',
+      message: 'Spark MCP Server is running',
+      endpoints: {
+        sse: 'https://mcp.swenzy.blog/sse',
+        mcp: 'https://mcp.swenzy.blog/mcp'
+      }
+    });
   });
 
   app.listen(port, '0.0.0.0', () => {
-    console.log(`Spark Sales MCP Server running on port ${port} (SSE mode)`);
+    console.log(`Spark Sales MCP Server running on port ${port}`);
   });
 }
 
