@@ -1,5 +1,6 @@
+import express from 'express';
 import { prisma } from '@spark/database';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { SparkMcpServer } from './server.js';
 import { leadTools } from './tools/lead.tools.js';
 import { messageTools } from './tools/message.tools.js';
@@ -9,7 +10,10 @@ import { aiTools } from './tools/ai.tools.js';
 import { scanTools } from './tools/scan.tools.js';
 
 async function main() {
-  const app = new SparkMcpServer();
+  const app = express();
+  const port = Number(process.env.PORT) || 3001;
+
+  const mcpApp = new SparkMcpServer();
 
   // Register tools
   const allTools = [
@@ -22,12 +26,35 @@ async function main() {
   ];
 
   for (const tool of allTools) {
-    app.registerTool(tool);
+    mcpApp.registerTool(tool);
   }
 
-  const transport = new StdioServerTransport();
-  await app.server.connect(transport);
-  console.error('Spark Sales MCP Server running on stdio');
+  let transport: SSEServerTransport | null = null;
+
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', server: 'spark-mcp' });
+  });
+
+  app.get('/sse', async (_req, res) => {
+    transport = new SSEServerTransport('/messages', res);
+    await mcpApp.server.connect(transport);
+
+    _req.on('close', () => {
+      console.log('SSE connection closed');
+    });
+  });
+
+  app.post('/messages', async (req, res) => {
+    if (!transport) {
+      res.status(400).send('No active SSE session');
+      return;
+    }
+    await transport.handlePostMessage(req, res);
+  });
+
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`Spark Sales MCP Server running on port ${port} (SSE mode)`);
+  });
 }
 
 main().catch(async (error) => {
