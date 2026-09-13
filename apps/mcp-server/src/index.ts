@@ -9,7 +9,6 @@ import { followUpTools } from './tools/followup.tools.js';
 import { aiTools } from './tools/ai.tools.js';
 import { scanTools } from './tools/scan.tools.js';
 
-// Her yeni bağlantı için izole bir MCP sunucusu üreten fabrika fonksiyonu
 function createSparkMcpInstance(): SparkMcpServer {
   const mcpApp = new SparkMcpServer();
 
@@ -33,14 +32,14 @@ async function main() {
   const app = express();
   const port = Number(process.env.PORT) || 3001;
 
-  // Çoklu istemci oturumlarını tutan Session Map
   const sessions = new Map<string, { transport: SSEServerTransport; mcpApp: SparkMcpServer }>();
 
-  // Global CORS ayarları
+  // Kapsamlı CORS başlıkları (Gemini proxy'lerinin takılmaması için)
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+    res.header('Access-Control-Expose-Headers', '*');
     if (req.method === 'OPTIONS') {
       res.sendStatus(200);
       return;
@@ -54,12 +53,8 @@ async function main() {
     res.json({ status: 'ok', server: 'spark-mcp' });
   });
 
-  app.get('/', (_req, res) => {
-    res.json({ status: 'ok', message: 'Spark MCP SSE server is running' });
-  });
-
-  app.get('/sse', async (req, res) => {
-    // Traefik ve Nginx proxy buffering'ini kapat
+  // Ortak SSE dinleyici fonksiyonu
+  const handleSse = async (req: express.Request, res: express.Response) => {
     res.setHeader('X-Accel-Buffering', 'no');
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -69,9 +64,6 @@ async function main() {
       res.flushHeaders();
     }
 
-    console.log('SSE connection requested from:', req.headers['origin'] || req.ip);
-
-    // Her oturuma özel transport ve mcp sunucu örneği oluştur
     const transport = new SSEServerTransport('/messages', res);
     const mcpApp = createSparkMcpInstance();
 
@@ -79,19 +71,22 @@ async function main() {
     sessions.set(sessionId, { transport, mcpApp });
 
     req.on('close', async () => {
-      console.log(`SSE connection closed for session: ${sessionId}`);
       sessions.delete(sessionId);
       try {
         await mcpApp.server.close();
       } catch (err) {
-        console.error('Error closing MCP server instance:', err);
+        console.error('Error closing server instance:', err);
       }
     });
 
     await mcpApp.server.connect(transport);
-  });
+  };
 
-  app.post('/messages', async (req, res) => {
+  // Hem /sse hem / rotasını dinle
+  app.get('/sse', handleSse);
+
+  // Ortak Mesaj iletici fonksiyonu (hem /messages hem /message destekler)
+  const handleMessage = async (req: express.Request, res: express.Response) => {
     const sessionId = req.query.sessionId as string;
     const session = sessions.get(sessionId);
 
@@ -101,10 +96,13 @@ async function main() {
     }
 
     await session.transport.handlePostMessage(req, res);
-  });
+  };
+
+  app.post('/messages', handleMessage);
+  app.post('/message', handleMessage);
 
   app.listen(port, '0.0.0.0', () => {
-    console.log(`Spark Sales MCP Server running on port ${port} (SSE mode)`);
+    console.log(`Spark Sales MCP Server running on port ${port}`);
   });
 }
 
@@ -112,17 +110,4 @@ main().catch(async (error) => {
   console.error('Server error:', error);
   await prisma.$disconnect();
   process.exit(1);
-});
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.error('Received SIGINT, shutting down gracefully...');
-  await prisma.$disconnect();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.error('Received SIGTERM, shutting down gracefully...');
-  await prisma.$disconnect();
-  process.exit(0);
 });
